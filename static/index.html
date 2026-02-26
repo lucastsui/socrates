@@ -947,13 +947,18 @@ async function refreshProfile() {
 
 async function deleteTopic(topic) {
   if (!currentLearnerId) return;
+  const url = `/api/profile/${encodeURIComponent(currentLearnerId)}/topics/${encodeURIComponent(topic)}`;
+  console.log("DELETE request:", url, "learner:", currentLearnerId, "topic:", topic);
   try {
-    const res = await fetch(`/api/profile/${encodeURIComponent(currentLearnerId)}/topics/${encodeURIComponent(topic)}`, {
+    const res = await fetch(url, {
       method: "DELETE",
+      headers: { "Accept": "application/json" },
     });
     if (!res.ok) {
-      const data = await res.json();
-      alert(data.error || "Failed to delete topic");
+      let msg = `Server returned ${res.status}`;
+      try { const data = await res.json(); msg = data.error || data.detail || msg; } catch {}
+      console.error("Delete failed:", res.status, res.url, "response body logged above");
+      alert(msg);
       return;
     }
     // If the deleted topic is the active one, clear it
@@ -963,7 +968,7 @@ async function deleteTopic(topic) {
     refreshProfile();
   } catch (e) {
     console.error("Failed to delete topic:", e);
-    alert("Failed to delete topic");
+    alert("Failed to delete topic: " + e.message);
   }
 }
 
