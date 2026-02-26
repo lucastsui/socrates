@@ -1,0 +1,1404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Adaptive Tutor</title>
+
+<!-- KaTeX -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.css">
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/katex.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/katex@0.16.21/dist/contrib/auto-render.min.js"></script>
+
+<!-- Marked -->
+<script src="https://cdn.jsdelivr.net/npm/marked@15.0.7/marked.min.js"></script>
+
+<!-- DOMPurify -->
+<script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.5/dist/purify.min.js"></script>
+
+<style>
+  :root {
+    --bg: #f8f7f4;
+    --surface: #ffffff;
+    --tutor-bg: #ffffff;
+    --user-bg: #3b82f6;
+    --user-text: #ffffff;
+    --text: #1a1a1a;
+    --text-secondary: #6b7280;
+    --border: #e5e5e5;
+    --accent: #3b82f6;
+    --error: #ef4444;
+    --sidebar-width: 300px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: "Georgia", "Times New Roman", serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 20px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .header h1 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .header-actions {
+    display: flex;
+    gap: 8px;
+  }
+  .header button {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 0.85rem;
+    padding: 6px 14px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .header button:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* Main layout: sidebar + chat column */
+  .main {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* Sidebar */
+  .sidebar {
+    width: var(--sidebar-width);
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    flex-shrink: 0;
+    display: none;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-size: 0.85rem;
+  }
+  .sidebar.open { display: block; }
+
+  .sidebar-section {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-section:last-child { border-bottom: none; }
+  .sidebar-section h3 {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-secondary);
+    margin-bottom: 10px;
+  }
+
+  /* Mastery cards */
+  .mastery-card {
+    position: relative;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .mastery-card:hover {
+    border-color: var(--accent);
+    background: #f0f7ff;
+  }
+  .mastery-card .delete-topic-btn {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity 0.15s, background 0.15s, color 0.15s;
+  }
+  .mastery-card:hover .delete-topic-btn { opacity: 1; }
+  .mastery-card .delete-topic-btn:hover {
+    background: var(--error);
+    color: white;
+  }
+  .mastery-card.active {
+    border-color: var(--accent);
+    background: #eff6ff;
+  }
+  .mastery-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+  }
+  .mastery-topic { font-weight: 600; font-size: 0.85rem; }
+  .mastery-pct { font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; }
+  .mastery-bar-bg {
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 6px;
+  }
+  .mastery-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.4s ease;
+  }
+
+  /* Trajectory badge */
+  .trajectory-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    font-weight: 600;
+  }
+  .trajectory-badge.improving { background: #dcfce7; color: #166534; }
+  .trajectory-badge.flat { background: #fef9c3; color: #854d0e; }
+  .trajectory-badge.declining { background: #fee2e2; color: #991b1b; }
+  .trajectory-badge.unknown { background: #f3f4f6; color: #6b7280; }
+
+  /* ZPD */
+  .zpd-levels {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .zpd-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  .zpd-label { color: var(--text-secondary); font-size: 0.8rem; }
+  .zpd-value { font-weight: 600; font-size: 0.8rem; text-transform: capitalize; }
+
+  /* Misconceptions */
+  .misconception-item {
+    padding: 8px;
+    background: #fafafa;
+    border-radius: 6px;
+    margin-bottom: 6px;
+    font-size: 0.82rem;
+    line-height: 1.4;
+  }
+  .misconception-item.resolved { opacity: 0.5; }
+  .misconception-meta {
+    font-size: 0.72rem;
+    color: var(--text-secondary);
+    margin-top: 4px;
+  }
+
+  /* Session history */
+  .session-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.78rem;
+  }
+  .session-table th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--text-secondary);
+    padding: 4px 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .session-table td {
+    padding: 4px 6px;
+    border-bottom: 1px solid #f3f4f6;
+  }
+  .sidebar-empty {
+    color: var(--text-secondary);
+    font-style: italic;
+    font-size: 0.82rem;
+  }
+
+  /* Chat column */
+  .chat-column {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  /* Chat area */
+  .chat {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .bubble {
+    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    line-height: 1.65;
+    font-size: 1rem;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+  }
+  .bubble.tutor {
+    align-self: flex-start;
+    background: var(--tutor-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px 12px 12px 2px;
+  }
+  .bubble.user {
+    align-self: flex-end;
+    background: var(--user-bg);
+    color: var(--user-text);
+    border-radius: 12px 12px 2px 12px;
+  }
+  .bubble.error {
+    align-self: center;
+    background: #fef2f2;
+    border: 1px solid #fecaca;
+    color: var(--error);
+    font-size: 0.9rem;
+  }
+
+  /* Label */
+  .bubble-label {
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 4px;
+    color: var(--text-secondary);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .bubble.user .bubble-label { color: rgba(255,255,255,0.7); }
+
+  /* Markdown inside bubbles */
+  .bubble p { margin: 0.5em 0; }
+  .bubble p:first-child { margin-top: 0; }
+  .bubble p:last-child { margin-bottom: 0; }
+  .bubble ul, .bubble ol { margin: 0.5em 0; padding-left: 1.5em; }
+  .bubble pre {
+    background: #f3f4f6;
+    border-radius: 6px;
+    padding: 10px;
+    overflow-x: auto;
+    font-size: 0.88rem;
+    margin: 0.5em 0;
+  }
+  .bubble.user pre { background: rgba(0,0,0,0.15); }
+  .bubble code {
+    font-family: "SF Mono", "Fira Code", monospace;
+    font-size: 0.88em;
+  }
+  .bubble :not(pre) > code {
+    background: #f3f4f6;
+    padding: 1px 5px;
+    border-radius: 4px;
+  }
+  .bubble.user :not(pre) > code { background: rgba(0,0,0,0.15); }
+  .bubble table {
+    border-collapse: collapse;
+    margin: 0.5em 0;
+    font-size: 0.92em;
+  }
+  .bubble th, .bubble td {
+    border: 1px solid var(--border);
+    padding: 6px 10px;
+    text-align: left;
+  }
+  .bubble th { background: #f9fafb; font-weight: 600; }
+  .bubble.user th, .bubble.user td { border-color: rgba(255,255,255,0.3); }
+  .bubble.user th { background: rgba(0,0,0,0.1); }
+
+  /* KaTeX display math */
+  .bubble .katex-display {
+    margin: 0.8em 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  /* Status bar */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 20px;
+    font-size: 0.8rem;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    border-top: 1px solid var(--border);
+    background: var(--surface);
+    flex-shrink: 0;
+    min-height: 32px;
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .status-bar[data-status="idle"] .status-dot { background: #22c55e; }
+  .status-bar[data-status="thinking"] .status-dot {
+    background: #f59e0b;
+    animation: pulse 1.2s infinite ease-in-out;
+  }
+  .status-bar[data-status="responding"] .status-dot {
+    background: #3b82f6;
+    animation: pulse 1.2s infinite ease-in-out;
+  }
+  .status-bar[data-status="error"] .status-dot { background: #ef4444; }
+  .status-bar[data-status="disconnected"] .status-dot { background: #9ca3af; }
+  .status-text { color: var(--text-secondary); }
+  @keyframes pulse {
+    0%, 80%, 100% { opacity: 0.4; transform: scale(0.85); }
+    40% { opacity: 1; transform: scale(1.1); }
+  }
+
+  /* Input area */
+  .input-area {
+    flex-shrink: 0;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    padding: 12px 20px;
+  }
+  .image-previews {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    flex-wrap: wrap;
+  }
+  .image-previews:empty { display: none; }
+  .img-thumb {
+    position: relative;
+    width: 60px; height: 60px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid var(--border);
+  }
+  .img-thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .img-thumb .remove {
+    position: absolute;
+    top: 2px; right: 2px;
+    width: 18px; height: 18px;
+    background: rgba(0,0,0,0.6);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    font-size: 11px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .input-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  .input-row textarea {
+    flex: 1;
+    font-family: "Georgia", "Times New Roman", serif;
+    font-size: 1rem;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    resize: none;
+    outline: none;
+    min-height: 44px;
+    max-height: 150px;
+    line-height: 1.5;
+    transition: border-color 0.15s;
+  }
+  .input-row textarea:focus { border-color: var(--accent); }
+  .input-row textarea:disabled { background: #f3f4f6; }
+
+  .btn-icon {
+    width: 42px; height: 42px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--surface);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    transition: all 0.15s;
+    flex-shrink: 0;
+  }
+  .btn-icon:hover { border-color: var(--accent); }
+  .btn-icon.send {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: white;
+  }
+  .btn-icon.send:hover { background: #2563eb; }
+  .btn-icon:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .input-hint {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-top: 6px;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  /* Start modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .modal-overlay.hidden { display: none; }
+  .modal {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 32px;
+    width: 480px;
+    max-width: 90vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+  .modal h2 {
+    font-size: 1.3rem;
+    margin-bottom: 4px;
+  }
+  .modal > p {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+  }
+  .modal label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .modal input[type="text"] {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: "Georgia", "Times New Roman", serif;
+    margin-bottom: 16px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .modal input[type="text"]:focus { border-color: var(--accent); }
+  .modal .start-btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 10px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    transition: background 0.15s;
+  }
+  .modal .start-btn:hover { background: #2563eb; }
+  .modal .start-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Returning learners list in modal */
+  .returning-section {
+    margin-bottom: 20px;
+  }
+  .returning-section h3 {
+    font-size: 0.8rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-secondary);
+    margin-bottom: 8px;
+  }
+  .learner-card {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .learner-card:hover {
+    border-color: var(--accent);
+    background: #f0f7ff;
+  }
+  .learner-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 4px;
+  }
+  .learner-card-id {
+    font-weight: 600;
+    font-size: 0.9rem;
+  }
+  .learner-card-sessions {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+  }
+  .learner-card-topics {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .topic-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 8px;
+    background: #f3f4f6;
+    border-radius: 10px;
+    font-size: 0.75rem;
+    color: var(--text);
+  }
+  .topic-chip-mastery {
+    font-weight: 600;
+    color: var(--accent);
+  }
+  .modal-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 16px 0;
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+  }
+  .modal-divider::before, .modal-divider::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* File thumbnail (non-image) */
+  .img-thumb.file-thumb {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    background: #f3f4f6;
+    width: auto;
+    min-width: 60px;
+    max-width: 120px;
+    padding: 4px 8px;
+  }
+  .file-thumb-icon { font-size: 1.2rem; line-height: 1; }
+  .file-thumb-name {
+    font-size: 0.6rem;
+    color: var(--text-secondary);
+    text-overflow: ellipsis;
+    overflow: hidden;
+    white-space: nowrap;
+    max-width: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  /* Newly-added topic highlight */
+  .mastery-card.newly-added {
+    animation: highlight-pulse 2s ease-out;
+  }
+  @keyframes highlight-pulse {
+    0% { box-shadow: 0 0 0 3px var(--accent); }
+    100% { box-shadow: none; }
+  }
+
+  /* Drop zone highlight */
+  .drop-active { outline: 2px dashed var(--accent); outline-offset: -2px; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <h1>Adaptive Tutor</h1>
+  <div class="header-actions">
+    <button id="profileBtn" style="display:none" onclick="toggleSidebar()">Profile</button>
+    <button id="newTopicBtn" style="display:none" onclick="switchTopic()">New Topic</button>
+    <button id="endBtn" style="display:none" onclick="endSession()">End Session</button>
+  </div>
+</div>
+
+<!-- Main area: sidebar + chat -->
+<div class="main">
+
+  <!-- Profile sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-section" id="sidebarMastery">
+      <h3>Mastery</h3>
+      <div id="masteryContent"><span class="sidebar-empty">No data yet</span></div>
+    </div>
+    <div class="sidebar-section" id="sidebarZPD">
+      <h3>Zone of Proximal Development</h3>
+      <div id="zpdContent"><span class="sidebar-empty">No data yet</span></div>
+    </div>
+    <div class="sidebar-section" id="sidebarMisconceptions">
+      <h3>Misconceptions</h3>
+      <div id="misconceptionsContent"><span class="sidebar-empty">None tracked</span></div>
+    </div>
+    <div class="sidebar-section" id="sidebarHistory">
+      <h3>Session History</h3>
+      <div id="historyContent"><span class="sidebar-empty">No sessions yet</span></div>
+    </div>
+  </div>
+
+  <!-- Chat column -->
+  <div class="chat-column">
+    <div class="chat" id="chat"></div>
+
+    <!-- Status bar -->
+    <div class="status-bar" id="statusBar" data-status="disconnected">
+      <div class="status-dot"></div>
+      <span class="status-text" id="statusText">Not connected</span>
+    </div>
+
+    <!-- Input -->
+    <div class="input-area" id="inputArea">
+      <div class="image-previews" id="imagePreviews"></div>
+      <div class="input-row">
+        <input type="file" id="filePicker" multiple style="display:none">
+        <button class="btn-icon" id="attachBtn" title="Attach image" onclick="document.getElementById('filePicker').click()" disabled>&#128247;</button>
+        <textarea id="msgInput" placeholder="Type your answer..." rows="1" disabled></textarea>
+        <button class="btn-icon send" id="sendBtn" onclick="sendMessage()" disabled>&#10148;</button>
+      </div>
+      <div class="input-hint">Paste or drag &amp; drop any file (images, PDFs, code, text)</div>
+    </div>
+  </div>
+</div>
+
+<!-- Start Modal -->
+<div class="modal-overlay" id="startModal">
+  <div class="modal">
+    <h2>Start a Tutoring Session</h2>
+    <p>Enter the topic you'd like to study. The tutor will adapt to your level.</p>
+    <div id="returningSection" class="returning-section" style="display:none"></div>
+    <div id="newSessionSection">
+      <label for="topicInput">Topic *</label>
+      <input type="text" id="topicInput" placeholder="e.g. derivatives, linear algebra, integrals" autofocus>
+      <label for="learnerInput">Learner ID</label>
+      <input type="text" id="learnerInput" placeholder="default" value="default">
+      <button class="start-btn" id="startBtn" onclick="startSession()">Begin Session</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// -----------------------------------------------------------------------
+// State
+// -----------------------------------------------------------------------
+let ws = null;
+let clientId = crypto.randomUUID();
+let pendingFiles = [];  // [{data: base64, mime: string, name: string, kind: "image"|"pdf"|"text"}]
+let streaming = false;
+let streamBubble = null;
+let streamBuffer = "";
+let currentTopic = "";
+let currentLearnerId = "";
+let sidebarOpen = false;
+let lastProfile = null;
+
+function buildUiState() {
+  return {
+    current_topic: currentTopic,
+    learner_id: currentLearnerId,
+    topics: Object.keys(lastProfile?.topics || {}),
+  };
+}
+
+const chat = document.getElementById("chat");
+const statusBar = document.getElementById("statusBar");
+const statusText = document.getElementById("statusText");
+const msgInput = document.getElementById("msgInput");
+const sendBtn = document.getElementById("sendBtn");
+const attachBtn = document.getElementById("attachBtn");
+const endBtn = document.getElementById("endBtn");
+const profileBtn = document.getElementById("profileBtn");
+const newTopicBtn = document.getElementById("newTopicBtn");
+const sidebar = document.getElementById("sidebar");
+const startModal = document.getElementById("startModal");
+const topicInput = document.getElementById("topicInput");
+const learnerInput = document.getElementById("learnerInput");
+const startBtn = document.getElementById("startBtn");
+const imagePreviews = document.getElementById("imagePreviews");
+const filePicker = document.getElementById("filePicker");
+const inputArea = document.getElementById("inputArea");
+
+// -----------------------------------------------------------------------
+// Marked + KaTeX setup
+// -----------------------------------------------------------------------
+marked.use({ breaks: true });
+
+// Escape $...$ and $$...$$ blocks before marked sees them (prevents
+// marked from mangling LaTeX backslashes and underscores).
+function protectMath(text) {
+  const blocks = [];
+  // Display math first ($$...$$)
+  text = text.replace(/\$\$([\s\S]+?)\$\$/g, (_, m) => {
+    blocks.push({ display: true, tex: m });
+    return `<span data-math-idx="${blocks.length - 1}"></span>`;
+  });
+  // Inline math ($...$) — avoid matching $$ or escaped \$
+  text = text.replace(/(?<!\$)\$(?!\$)(.+?)(?<!\$)\$(?!\$)/g, (_, m) => {
+    blocks.push({ display: false, tex: m });
+    return `<span data-math-idx="${blocks.length - 1}"></span>`;
+  });
+  return { text, blocks };
+}
+
+function renderMarkdown(text) {
+  const { text: safeText, blocks } = protectMath(text);
+  let html = marked.parse(safeText);
+  html = DOMPurify.sanitize(html);
+  // Replace placeholders with KaTeX-rendered HTML
+  for (let i = 0; i < blocks.length; i++) {
+    const b = blocks[i];
+    try {
+      const rendered = katex.renderToString(b.tex, {
+        displayMode: b.display,
+        throwOnError: false,
+      });
+      html = html.replace(`<span data-math-idx="${i}"></span>`, rendered);
+    } catch (e) {
+      // Fallback: show raw LaTeX
+      const delim = b.display ? "$$" : "$";
+      html = html.replace(`<span data-math-idx="${i}"></span>`, `${delim}${b.tex}${delim}`);
+    }
+  }
+  return html;
+}
+
+// -----------------------------------------------------------------------
+// Profile sidebar
+// -----------------------------------------------------------------------
+function toggleSidebar() {
+  sidebarOpen = !sidebarOpen;
+  sidebar.classList.toggle("open", sidebarOpen);
+  profileBtn.textContent = sidebarOpen ? "Hide Profile" : "Profile";
+}
+
+function masteryColor(pct) {
+  if (pct >= 85) return "#22c55e";
+  if (pct >= 60) return "#f59e0b";
+  if (pct >= 30) return "#f97316";
+  return "#ef4444";
+}
+
+async function refreshProfile() {
+  if (!currentLearnerId) return;
+  try {
+    const res = await fetch(`/api/profile/${encodeURIComponent(currentLearnerId)}`);
+    if (!res.ok) return;
+    const profile = await res.json();
+    lastProfile = profile;
+
+    // If currentTopic was deleted from profile, clear it
+    if (currentTopic && !(currentTopic in (profile.topics || {}))) {
+      currentTopic = "";
+    }
+
+    // If the latest session_history entry has a different topic with no end_time, auto-switch
+    const sessions = profile.session_history || [];
+    if (sessions.length > 0) {
+      const latest = sessions[sessions.length - 1];
+      if (latest.topic && !latest.end_time && latest.topic !== currentTopic) {
+        currentTopic = latest.topic;
+      }
+    }
+
+    renderSidebar(profile);
+  } catch (e) {
+    console.error("Failed to fetch profile:", e);
+  }
+}
+
+async function deleteTopic(topic) {
+  if (!currentLearnerId) return;
+  try {
+    const res = await fetch(`/api/profile/${encodeURIComponent(currentLearnerId)}/topics/${encodeURIComponent(topic)}`, {
+      method: "DELETE",
+    });
+    if (!res.ok) {
+      const data = await res.json();
+      alert(data.error || "Failed to delete topic");
+      return;
+    }
+    // If the deleted topic is the active one, clear it
+    if (topic === currentTopic) {
+      currentTopic = "";
+    }
+    refreshProfile();
+  } catch (e) {
+    console.error("Failed to delete topic:", e);
+    alert("Failed to delete topic");
+  }
+}
+
+function renderSidebar(profile) {
+  // Mastery section — show all topics, active first
+  const masteryEl = document.getElementById("masteryContent");
+  const topics = profile.topics || {};
+  const topicNames = Object.keys(topics);
+  const activeTopic = currentTopic;
+
+  // Active topic first, then the rest alphabetically
+  const otherTopics = topicNames.filter(n => n !== activeTopic).sort();
+  const orderedTopics = [activeTopic, ...otherTopics].filter(n => n && topics[n]);
+
+  if (orderedTopics.length === 0) {
+    masteryEl.innerHTML = '<span class="sidebar-empty">No data yet</span>';
+  } else {
+    let html = "";
+    for (const name of orderedTopics) {
+      const info = topics[name];
+      const pct = Math.round((info.mastery_level || 0) * 100);
+      const traj = info.trajectory || "unknown";
+      const isActive = name === activeTopic;
+      const cardClass = isActive ? "mastery-card active" : "mastery-card";
+      const activeTag = isActive ? ` <span style="font-size:0.7rem;color:var(--accent);font-weight:400">(active)</span>` : "";
+      html += `
+        <div class="${cardClass}" data-topic="${esc(name)}">
+          <button class="delete-topic-btn" data-topic="${esc(name)}" title="Delete topic">&times;</button>
+          <div class="mastery-row">
+            <span class="mastery-topic">${esc(name)}${activeTag}</span>
+            <span class="mastery-pct">${pct}%</span>
+          </div>
+          <div class="mastery-bar-bg">
+            <div class="mastery-bar-fill" style="width:${pct}%;background:${masteryColor(pct)}"></div>
+          </div>
+          <span class="trajectory-badge ${traj}">${traj}</span>
+        </div>`;
+    }
+    masteryEl.innerHTML = html;
+    // Click card to switch topic
+    masteryEl.querySelectorAll(".mastery-card[data-topic]").forEach(el => {
+      el.addEventListener("click", () => {
+        const topic = el.dataset.topic;
+        if (topic === currentTopic) return;
+        topicInput.value = topic;
+        startSession();
+      });
+    });
+    // Delete topic buttons
+    masteryEl.querySelectorAll(".delete-topic-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const topic = btn.dataset.topic;
+        if (confirm(`Delete topic "${topic}" and all its data?`)) {
+          deleteTopic(topic);
+        }
+      });
+    });
+  }
+
+  // ZPD section — show for current topic if available
+  const zpdEl = document.getElementById("zpdContent");
+  const currentTopicData = topics[currentTopic];
+  if (currentTopicData && currentTopicData.zpd) {
+    const z = currentTopicData.zpd;
+    zpdEl.innerHTML = `
+      <div class="zpd-levels">
+        <div class="zpd-row"><span class="zpd-label">Current level</span><span class="zpd-value">${esc(z.current_level)}</span></div>
+        <div class="zpd-row"><span class="zpd-label">Stretch level</span><span class="zpd-value" style="color:var(--accent)">${esc(z.stretch_level)}</span></div>
+        <div class="zpd-row"><span class="zpd-label">Too hard</span><span class="zpd-value" style="color:var(--error)">${esc(z.too_hard_level)}</span></div>
+      </div>`;
+  } else {
+    zpdEl.innerHTML = '<span class="sidebar-empty">No data yet</span>';
+  }
+
+  // Misconceptions — active topic only
+  const miscEl = document.getElementById("misconceptionsContent");
+  let allMisconceptions = [];
+  const activeInfo = topics[activeTopic];
+  if (activeInfo && activeInfo.misconceptions) {
+    for (const m of activeInfo.misconceptions) {
+      allMisconceptions.push({ ...m, topic: activeTopic });
+    }
+  }
+  if (allMisconceptions.length === 0) {
+    miscEl.innerHTML = '<span class="sidebar-empty">None tracked</span>';
+  } else {
+    // Show unresolved first
+    allMisconceptions.sort((a, b) => (a.resolved === b.resolved ? 0 : a.resolved ? 1 : -1));
+    let html = "";
+    for (const m of allMisconceptions) {
+      const cls = m.resolved ? "misconception-item resolved" : "misconception-item";
+      html += `<div class="${cls}">
+        ${esc(m.description)}
+        <div class="misconception-meta">
+          ${esc(m.topic)} &middot; seen ${m.times_observed}x &middot; ${m.resolved ? "resolved" : "unresolved"}
+        </div>
+      </div>`;
+    }
+    miscEl.innerHTML = html;
+  }
+
+  // Session history — active topic only
+  const histEl = document.getElementById("historyContent");
+  const sessions = (profile.session_history || []).filter(s => s.topic === activeTopic);
+  if (sessions.length === 0) {
+    histEl.innerHTML = '<span class="sidebar-empty">No sessions yet</span>';
+  } else {
+    const recent = sessions.slice(-10).reverse();
+    let html = '<table class="session-table"><thead><tr><th>#</th><th>Acc</th><th>Mastery</th></tr></thead><tbody>';
+    for (const s of recent) {
+      const acc = s.attempts_count > 0 ? Math.round((s.correct_count / s.attempts_count) * 100) + "%" : "-";
+      const masteryEnd = Math.round((s.mastery_end || 0) * 100) + "%";
+      const delta = s.mastery_end - s.mastery_start;
+      const arrow = delta > 0.01 ? "&#9650;" : delta < -0.01 ? "&#9660;" : "&#8212;";
+      const arrowColor = delta > 0.01 ? "#22c55e" : delta < -0.01 ? "#ef4444" : "#9ca3af";
+      html += `<tr>
+        <td>${s.session_number}</td>
+        <td>${acc}</td>
+        <td>${masteryEnd} <span style="color:${arrowColor}">${arrow}</span></td>
+      </tr>`;
+    }
+    html += "</tbody></table>";
+    histEl.innerHTML = html;
+  }
+}
+
+function esc(s) {
+  const d = document.createElement("div");
+  d.textContent = s || "";
+  return d.innerHTML;
+}
+
+// -----------------------------------------------------------------------
+// Start modal: load returning learners
+// -----------------------------------------------------------------------
+async function loadReturningLearners() {
+  try {
+    const res = await fetch("/api/learners");
+    if (!res.ok) return;
+    const learners = await res.json();
+    if (learners.length === 0) return;
+
+    const section = document.getElementById("returningSection");
+    let html = '<h3>Continue a previous session</h3>';
+    for (const l of learners) {
+      const topicChips = Object.entries(l.topics || {}).map(([name, info]) => {
+        const pct = Math.round((info.mastery || 0) * 100);
+        return `<span class="topic-chip">${esc(name)} <span class="topic-chip-mastery">${pct}%</span></span>`;
+      }).join("");
+      html += `<div class="learner-card" data-learner-id="${esc(l.learner_id)}" data-topics='${JSON.stringify(Object.keys(l.topics || {}))}'>
+        <div class="learner-card-header">
+          <span class="learner-card-id">${esc(l.learner_id)}</span>
+          <span class="learner-card-sessions">${l.session_count} session${l.session_count !== 1 ? "s" : ""}</span>
+        </div>
+        <div class="learner-card-topics">${topicChips || '<span class="sidebar-empty">No topics</span>'}</div>
+      </div>`;
+    }
+    html += '<div class="modal-divider">or start new</div>';
+    section.innerHTML = html;
+    section.style.display = "block";
+
+    // Click handler for learner cards
+    section.querySelectorAll(".learner-card").forEach(card => {
+      card.addEventListener("click", () => {
+        const lid = card.dataset.learnerId;
+        const topics = JSON.parse(card.dataset.topics || "[]");
+        learnerInput.value = lid;
+        if (topics.length > 0) {
+          topicInput.value = topics[topics.length - 1]; // most recent topic
+        }
+        topicInput.focus();
+      });
+    });
+  } catch (e) {
+    console.error("Failed to load learners:", e);
+  }
+}
+
+// -----------------------------------------------------------------------
+// WebSocket
+// -----------------------------------------------------------------------
+function connect() {
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  ws = new WebSocket(`${proto}//${location.host}/ws/${clientId}`);
+
+  ws.onopen = () => {
+    console.log("WS connected");
+    setStatus("idle", "Connected");
+  };
+
+  ws.onmessage = (event) => {
+    const msg = JSON.parse(event.data);
+
+    switch (msg.type) {
+      case "stream_start":
+        streaming = true;
+        streamBuffer = "";
+        streamBubble = addBubble("tutor", "");
+        setStatus("responding", "Tutor is responding...");
+        break;
+
+      case "token":
+        streamBuffer += msg.content;
+        if (streamBubble) {
+          streamBubble.querySelector(".bubble-content").innerHTML =
+            renderMarkdown(streamBuffer);
+        }
+        scrollToBottom();
+        break;
+
+      case "stream_end":
+        streaming = false;
+        if (streamBubble) {
+          streamBubble.querySelector(".bubble-content").innerHTML =
+            renderMarkdown(streamBuffer);
+        }
+        streamBubble = null;
+        streamBuffer = "";
+        setInputEnabled(true);
+        setStatus("idle", "Ready");
+        scrollToBottom();
+        // Refresh profile after each tutor response
+        refreshProfile();
+        break;
+
+      case "error":
+        addBubble("error", msg.content);
+        setInputEnabled(true);
+        setStatus("error", "Error: " + msg.content);
+        break;
+    }
+  };
+
+  ws.onclose = () => {
+    console.log("WS disconnected");
+    setStatus("disconnected", "Disconnected — reconnecting...");
+    setTimeout(connect, 2000);
+  };
+  ws.onerror = (err) => {
+    console.error("WS error", err);
+    setStatus("error", "Connection error");
+  };
+}
+
+// -----------------------------------------------------------------------
+// UI helpers
+// -----------------------------------------------------------------------
+function addBubble(role, content) {
+  const div = document.createElement("div");
+  div.className = `bubble ${role}`;
+
+  const label = document.createElement("div");
+  label.className = "bubble-label";
+  label.textContent = role === "tutor" ? "Tutor" : role === "user" ? "You" : "";
+
+  const body = document.createElement("div");
+  body.className = "bubble-content";
+  if (role === "error") {
+    body.textContent = content;
+  } else if (role === "user") {
+    body.textContent = content;
+  } else {
+    body.innerHTML = content ? renderMarkdown(content) : "";
+  }
+
+  if (label.textContent) div.appendChild(label);
+  div.appendChild(body);
+  chat.appendChild(div);
+  scrollToBottom();
+  return div;
+}
+
+function scrollToBottom() {
+  requestAnimationFrame(() => {
+    chat.scrollTop = chat.scrollHeight;
+  });
+}
+
+function setStatus(status, text) {
+  statusBar.setAttribute("data-status", status);
+  statusText.textContent = text;
+}
+
+function setInputEnabled(enabled) {
+  msgInput.disabled = !enabled;
+  sendBtn.disabled = !enabled;
+  attachBtn.disabled = !enabled;
+  if (enabled) msgInput.focus();
+}
+
+// -----------------------------------------------------------------------
+// Session lifecycle
+// -----------------------------------------------------------------------
+function normalizeTopic(t) {
+  return t.trim().toLowerCase().replace(/[\s-]+/g, "_");
+}
+
+function startSession() {
+  const topic = normalizeTopic(topicInput.value);
+  if (!topic) { topicInput.focus(); return; }
+  const learnerId = learnerInput.value.trim() || "default";
+
+  currentTopic = topic;
+  currentLearnerId = learnerId;
+
+  startModal.classList.add("hidden");
+  endBtn.style.display = "";
+  profileBtn.style.display = "";
+  newTopicBtn.style.display = "";
+
+  // Open sidebar and load initial profile
+  sidebarOpen = true;
+  sidebar.classList.add("open");
+  profileBtn.textContent = "Hide Profile";
+  refreshProfile();
+
+  // Connect if needed, then send start
+  const sendStart = () => {
+    ws.send(JSON.stringify({ type: "start", topic, learner_id: learnerId, ui_state: buildUiState() }));
+    setStatus("thinking", "Tutor is thinking...");
+    setInputEnabled(false);
+  };
+
+  if (ws && ws.readyState === WebSocket.OPEN) {
+    sendStart();
+  } else {
+    connect();
+    const waitForOpen = () => {
+      if (ws.readyState === WebSocket.OPEN) {
+        sendStart();
+      } else {
+        setTimeout(waitForOpen, 100);
+      }
+    };
+    waitForOpen();
+  }
+}
+
+function switchTopic() {
+  // Reopen the start modal, keep the learner ID
+  loadReturningLearners();
+  topicInput.value = "";
+  startModal.classList.remove("hidden");
+  topicInput.focus();
+}
+
+function endSession() {
+  if (!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify({ type: "end_session", ui_state: buildUiState() }));
+  setStatus("thinking", "Ending session...");
+  setInputEnabled(false);
+  endBtn.style.display = "none";
+  newTopicBtn.style.display = "none";
+}
+
+// -----------------------------------------------------------------------
+// Sending messages
+// -----------------------------------------------------------------------
+function sendMessage() {
+  if (streaming || !ws || ws.readyState !== WebSocket.OPEN) return;
+  const text = msgInput.value.trim();
+  if (!text && pendingFiles.length === 0) return;
+
+  const hasFiles = pendingFiles.length > 0;
+  const displayText = text || (hasFiles ? "(attached files)" : "");
+  addBubble("user", displayText);
+
+  if (hasFiles) {
+    const lastBubble = chat.lastElementChild;
+    const content = lastBubble.querySelector(".bubble-content");
+    for (const f of pendingFiles) {
+      if (f.kind === "image") {
+        const imgEl = document.createElement("img");
+        imgEl.src = `data:${f.mime};base64,${f.data}`;
+        imgEl.style.cssText = "max-width:200px;max-height:150px;border-radius:8px;margin-top:8px;display:block;";
+        content.appendChild(imgEl);
+      } else {
+        const tag = document.createElement("div");
+        tag.style.cssText = "margin-top:6px;font-size:0.85rem;color:rgba(255,255,255,0.8);font-family:-apple-system,sans-serif;";
+        tag.textContent = fileIcon(f.kind) + " " + f.name;
+        content.appendChild(tag);
+      }
+    }
+  }
+
+  if (hasFiles) {
+    ws.send(JSON.stringify({
+      type: "files",
+      content: text,
+      images: pendingFiles.filter(f => f.kind === "image").map(f => ({ data: f.data, mime: f.mime })),
+      documents: pendingFiles.filter(f => f.kind === "pdf").map(f => ({ data: f.data, mime: f.mime, name: f.name })),
+      text_files: pendingFiles.filter(f => f.kind === "text").map(f => ({ data: f.data, mime: f.mime, name: f.name })),
+      ui_state: buildUiState(),
+    }));
+  } else {
+    ws.send(JSON.stringify({ type: "text", content: text, ui_state: buildUiState() }));
+  }
+
+  msgInput.value = "";
+  autoResize();
+  clearFiles();
+  setStatus("thinking", "Tutor is thinking...");
+  setInputEnabled(false);
+  scrollToBottom();
+}
+
+// -----------------------------------------------------------------------
+// File handling
+// -----------------------------------------------------------------------
+const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+const TEXT_EXTENSIONS = new Set([
+  "txt", "md", "csv", "json", "xml", "yaml", "yml", "toml", "ini", "cfg",
+  "py", "js", "ts", "jsx", "tsx", "html", "css", "scss", "less",
+  "java", "c", "cpp", "h", "hpp", "cs", "go", "rs", "rb", "php",
+  "sh", "bash", "zsh", "fish", "ps1", "bat",
+  "sql", "r", "m", "swift", "kt", "scala", "lua", "pl", "ex", "exs",
+  "tex", "bib", "log", "env", "gitignore", "dockerfile",
+]);
+
+function classifyFile(file) {
+  if (file.type.startsWith("image/")) return "image";
+  if (file.type === "application/pdf") return "pdf";
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  if (TEXT_EXTENSIONS.has(ext)) return "text";
+  if (file.type.startsWith("text/")) return "text";
+  return "text"; // default: try as text
+}
+
+function fileIcon(kind) {
+  if (kind === "image") return "\ud83d\uddbc\ufe0f";
+  if (kind === "pdf") return "\ud83d\udcc4";
+  return "\ud83d\udcdd";
+}
+
+function addFile(file) {
+  if (file.size > MAX_FILE_SIZE) { alert("File too large: " + file.name + " (max 10MB)"); return; }
+  const kind = classifyFile(file);
+
+  if (kind === "text") {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = btoa(unescape(encodeURIComponent(reader.result)));
+      pendingFiles.push({ data: base64, mime: file.type || "text/plain", name: file.name, kind });
+      renderFilePreviews();
+    };
+    reader.readAsText(file);
+  } else {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result.split(",")[1];
+      pendingFiles.push({ data: base64, mime: file.type, name: file.name, kind });
+      renderFilePreviews();
+    };
+    reader.readAsDataURL(file);
+  }
+}
+
+function renderFilePreviews() {
+  imagePreviews.innerHTML = "";
+  pendingFiles.forEach((f, i) => {
+    const thumb = document.createElement("div");
+    if (f.kind === "image") {
+      thumb.className = "img-thumb";
+      const imgEl = document.createElement("img");
+      imgEl.src = `data:${f.mime};base64,${f.data}`;
+      thumb.appendChild(imgEl);
+    } else {
+      thumb.className = "img-thumb file-thumb";
+      const icon = document.createElement("div");
+      icon.className = "file-thumb-icon";
+      icon.textContent = fileIcon(f.kind);
+      const name = document.createElement("div");
+      name.className = "file-thumb-name";
+      name.textContent = f.name;
+      thumb.appendChild(icon);
+      thumb.appendChild(name);
+    }
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "remove";
+    removeBtn.textContent = "\u00d7";
+    removeBtn.onclick = () => { pendingFiles.splice(i, 1); renderFilePreviews(); };
+    thumb.appendChild(removeBtn);
+    imagePreviews.appendChild(thumb);
+  });
+}
+
+function clearFiles() {
+  pendingFiles = [];
+  imagePreviews.innerHTML = "";
+}
+
+// Paste (any file from clipboard)
+document.addEventListener("paste", (e) => {
+  if (msgInput.disabled) return;
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.kind === "file") { e.preventDefault(); addFile(item.getAsFile()); }
+  }
+});
+
+// Drag & drop (all files)
+inputArea.addEventListener("dragover", (e) => { e.preventDefault(); inputArea.classList.add("drop-active"); });
+inputArea.addEventListener("dragleave", () => { inputArea.classList.remove("drop-active"); });
+inputArea.addEventListener("drop", (e) => {
+  e.preventDefault();
+  inputArea.classList.remove("drop-active");
+  if (msgInput.disabled) return;
+  for (const file of e.dataTransfer.files) addFile(file);
+});
+
+filePicker.addEventListener("change", () => {
+  for (const file of filePicker.files) addFile(file);
+  filePicker.value = "";
+});
+
+// -----------------------------------------------------------------------
+// Textarea auto-resize & keyboard
+// -----------------------------------------------------------------------
+function autoResize() {
+  msgInput.style.height = "auto";
+  msgInput.style.height = Math.min(msgInput.scrollHeight, 150) + "px";
+}
+msgInput.addEventListener("input", autoResize);
+
+msgInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+
+topicInput.addEventListener("keydown", (e) => { if (e.key === "Enter") startSession(); });
+learnerInput.addEventListener("keydown", (e) => { if (e.key === "Enter") startSession(); });
+
+// -----------------------------------------------------------------------
+// Init: load returning learners
+// -----------------------------------------------------------------------
+loadReturningLearners();
+</script>
+</body>
+</html>
