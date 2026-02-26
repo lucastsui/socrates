@@ -1,4 +1,4 @@
-# Adaptive Tutor
+# Socrates
 
 An adaptive tutoring system that uses Claude CLI and MCP (Model Context Protocol) to deliver personalized, Socratic-style instruction with real-time mastery tracking.
 
@@ -79,6 +79,18 @@ The system implements several evidence-based learning strategies:
 - **Error classification**: Errors are categorized as computational (right method, wrong calculation), structural (wrong method), or conceptual (misunderstanding the idea). Each triggers a different intervention.
 - **Break detection**: Monitors consecutive errors, session duration, and error severity trends to suggest breaks when frustration signals appear.
 - **Productive failure**: Computational errors (correct approach, wrong arithmetic) are allowed to repeat 2-3 times before intervention, as they represent productive practice.
+
+### Theoretical Foundations
+
+| Mechanism | Theory | Key Reference |
+|---|---|---|
+| ZPD-based question targeting | Zone of Proximal Development | Vygotsky, L. S. (1978). *Mind in Society* |
+| Bloom level progression | Bloom's Taxonomy | Bloom, B. S. (1956). *Taxonomy of Educational Objectives*; Anderson, L. W. & Krathwohl, D. R. (2001). *A Taxonomy for Learning, Teaching, and Assessing* (revised) |
+| Mastery threshold before advancing | Mastery Learning | Bloom, B. S. (1968). "Learning for Mastery"; Carroll, J. B. (1963). "A Model of School Learning" |
+| Allowing computational errors before intervening | Productive Failure | Kapur, M. (2008). "Productive Failure"; Kapur, M. (2016). "Examining Productive Failure" |
+| Differentiated scaffolding (brief tip / targeted instruction / go back) | Scaffolding | Wood, D., Bruner, J. S., & Ross, G. (1976). "The Role of Tutoring in Problem Solving" |
+| Break detection and fatigue monitoring | Cognitive Load Theory | Sweller, J. (1988). "Cognitive Load During Problem Solving"; also draws on spacing effect research (Cepeda et al., 2006) |
+| Guiding questions over direct instruction | Socratic Method | Paul, R. & Elder, L. (2007). *The Art of Socratic Questioning* |
 
 ## Running Tests
 

@@ -1,7 +1,7 @@
 [project]
-name = "adaptive-tutor"
+name = "socrates"
 version = "0.1.0"
-description = "An adaptive tutoring system powered by Claude CLI and MCP"
+description = "Socrates — an adaptive tutoring system powered by Claude CLI and MCP"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"
