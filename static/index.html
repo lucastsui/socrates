@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -16,8 +16,52 @@
 <!-- DOMPurify -->
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3.2.5/dist/purify.min.js"></script>
 
+<script>
+  (function() {
+    var t = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', t);
+  })();
+</script>
 <style>
   :root {
+    --sidebar-width: 300px;
+  }
+
+  /* Dark theme (default) */
+  [data-theme="dark"] {
+    --bg: #0f0f0f;
+    --surface: #1a1a1a;
+    --tutor-bg: #1e1e1e;
+    --user-bg: #2563eb;
+    --user-text: #ffffff;
+    --text: #e5e5e5;
+    --text-secondary: #9ca3af;
+    --border: #2e2e2e;
+    --accent: #3b82f6;
+    --error: #ef4444;
+    --code-bg: #2a2a2a;
+    --hover-bg: #1e293b;
+    --card-active-bg: #1e293b;
+    --mastery-bar-bg: #374151;
+    --table-header-bg: #262626;
+    --disabled-bg: #262626;
+    --modal-overlay: rgba(0,0,0,0.6);
+    --misconception-bg: #262626;
+    --error-bubble-bg: #2c1518;
+    --error-bubble-border: #5c2327;
+    --badge-improving-bg: #14532d;
+    --badge-improving-text: #86efac;
+    --badge-flat-bg: #713f12;
+    --badge-flat-text: #fde68a;
+    --badge-declining-bg: #7f1d1d;
+    --badge-declining-text: #fca5a5;
+    --badge-unknown-bg: #374151;
+    --badge-unknown-text: #9ca3af;
+    color-scheme: dark;
+  }
+
+  /* Light theme */
+  [data-theme="light"] {
     --bg: #f8f7f4;
     --surface: #ffffff;
     --tutor-bg: #ffffff;
@@ -28,7 +72,25 @@
     --border: #e5e5e5;
     --accent: #3b82f6;
     --error: #ef4444;
-    --sidebar-width: 300px;
+    --code-bg: #f3f4f6;
+    --hover-bg: #f0f7ff;
+    --card-active-bg: #eff6ff;
+    --mastery-bar-bg: #e5e7eb;
+    --table-header-bg: #f9fafb;
+    --disabled-bg: #f3f4f6;
+    --modal-overlay: rgba(0,0,0,0.4);
+    --misconception-bg: #fafafa;
+    --error-bubble-bg: #fef2f2;
+    --error-bubble-border: #fecaca;
+    --badge-improving-bg: #dcfce7;
+    --badge-improving-text: #166534;
+    --badge-flat-bg: #fef9c3;
+    --badge-flat-text: #854d0e;
+    --badge-declining-bg: #fee2e2;
+    --badge-declining-text: #991b1b;
+    --badge-unknown-bg: #f3f4f6;
+    --badge-unknown-text: #6b7280;
+    color-scheme: light;
   }
 
   * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -121,7 +183,7 @@
   }
   .mastery-card:hover {
     border-color: var(--accent);
-    background: #f0f7ff;
+    background: var(--hover-bg);
   }
   .mastery-card .delete-topic-btn {
     position: absolute;
@@ -149,7 +211,7 @@
   }
   .mastery-card.active {
     border-color: var(--accent);
-    background: #eff6ff;
+    background: var(--card-active-bg);
   }
   .mastery-row {
     display: flex;
@@ -161,7 +223,7 @@
   .mastery-pct { font-size: 0.8rem; color: var(--text-secondary); font-weight: 600; }
   .mastery-bar-bg {
     height: 6px;
-    background: #e5e7eb;
+    background: var(--mastery-bar-bg);
     border-radius: 3px;
     overflow: hidden;
     margin-bottom: 6px;
@@ -180,10 +242,10 @@
     font-size: 0.75rem;
     font-weight: 600;
   }
-  .trajectory-badge.improving { background: #dcfce7; color: #166534; }
-  .trajectory-badge.flat { background: #fef9c3; color: #854d0e; }
-  .trajectory-badge.declining { background: #fee2e2; color: #991b1b; }
-  .trajectory-badge.unknown { background: #f3f4f6; color: #6b7280; }
+  .trajectory-badge.improving { background: var(--badge-improving-bg); color: var(--badge-improving-text); }
+  .trajectory-badge.flat { background: var(--badge-flat-bg); color: var(--badge-flat-text); }
+  .trajectory-badge.declining { background: var(--badge-declining-bg); color: var(--badge-declining-text); }
+  .trajectory-badge.unknown { background: var(--badge-unknown-bg); color: var(--badge-unknown-text); }
 
   /* ZPD */
   .zpd-levels {
@@ -202,7 +264,7 @@
   /* Misconceptions */
   .misconception-item {
     padding: 8px;
-    background: #fafafa;
+    background: var(--misconception-bg);
     border-radius: 6px;
     margin-bottom: 6px;
     font-size: 0.82rem;
@@ -230,7 +292,7 @@
   }
   .session-table td {
     padding: 4px 6px;
-    border-bottom: 1px solid #f3f4f6;
+    border-bottom: 1px solid var(--border);
   }
   .sidebar-empty {
     color: var(--text-secondary);
@@ -279,8 +341,8 @@
   }
   .bubble.error {
     align-self: center;
-    background: #fef2f2;
-    border: 1px solid #fecaca;
+    background: var(--error-bubble-bg);
+    border: 1px solid var(--error-bubble-border);
     color: var(--error);
     font-size: 0.9rem;
   }
@@ -303,7 +365,7 @@
   .bubble p:last-child { margin-bottom: 0; }
   .bubble ul, .bubble ol { margin: 0.5em 0; padding-left: 1.5em; }
   .bubble pre {
-    background: #f3f4f6;
+    background: var(--code-bg);
     border-radius: 6px;
     padding: 10px;
     overflow-x: auto;
@@ -316,7 +378,7 @@
     font-size: 0.88em;
   }
   .bubble :not(pre) > code {
-    background: #f3f4f6;
+    background: var(--code-bg);
     padding: 1px 5px;
     border-radius: 4px;
   }
@@ -331,7 +393,7 @@
     padding: 6px 10px;
     text-align: left;
   }
-  .bubble th { background: #f9fafb; font-weight: 600; }
+  .bubble th { background: var(--table-header-bg); font-weight: 600; }
   .bubble.user th, .bubble.user td { border-color: rgba(255,255,255,0.3); }
   .bubble.user th { background: rgba(0,0,0,0.1); }
 
@@ -434,7 +496,7 @@
     transition: border-color 0.15s;
   }
   .input-row textarea:focus { border-color: var(--accent); }
-  .input-row textarea:disabled { background: #f3f4f6; }
+  .input-row textarea:disabled { background: var(--disabled-bg); }
 
   .btn-icon {
     width: 42px; height: 42px;
@@ -469,7 +531,7 @@
   .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0,0,0,0.4);
+    background: var(--modal-overlay);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -484,7 +546,7 @@
     max-width: 90vw;
     max-height: 90vh;
     overflow-y: auto;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+    box-shadow: 0 20px 60px rgba(0,0,0,0.3);
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   }
   .modal h2 {
@@ -552,7 +614,7 @@
   }
   .learner-card:hover {
     border-color: var(--accent);
-    background: #f0f7ff;
+    background: var(--hover-bg);
   }
   .learner-card-header {
     display: flex;
@@ -578,7 +640,7 @@
     align-items: center;
     gap: 4px;
     padding: 2px 8px;
-    background: #f3f4f6;
+    background: var(--code-bg);
     border-radius: 10px;
     font-size: 0.75rem;
     color: var(--text);
@@ -608,7 +670,7 @@
     align-items: center;
     justify-content: center;
     flex-direction: column;
-    background: #f3f4f6;
+    background: var(--code-bg);
     width: auto;
     min-width: 60px;
     max-width: 120px;
@@ -636,6 +698,26 @@
 
   /* Drop zone highlight */
   .drop-active { outline: 2px dashed var(--accent); outline-offset: -2px; }
+
+  /* Theme-aware inputs */
+  .input-row textarea,
+  .modal input[type="text"] {
+    background: var(--surface);
+    color: var(--text);
+  }
+
+  /* Theme toggle button */
+  #themeBtn {
+    font-size: 1.1rem;
+    background: none;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 4px 10px;
+    cursor: pointer;
+    color: var(--text);
+    transition: border-color 0.15s;
+  }
+  #themeBtn:hover { border-color: var(--accent); }
 </style>
 </head>
 <body>
@@ -644,6 +726,7 @@
 <div class="header">
   <h1>Socrates</h1>
   <div class="header-actions">
+    <button id="themeBtn" onclick="toggleTheme()" title="Toggle light/dark theme">&#9789;</button>
     <button id="profileBtn" style="display:none" onclick="toggleSidebar()">Profile</button>
     <button id="newTopicBtn" style="display:none" onclick="switchTopic()">New Topic</button>
     <button id="endBtn" style="display:none" onclick="endSession()">End Session</button>
@@ -727,6 +810,26 @@ let currentTopic = "";
 let currentLearnerId = "";
 let sidebarOpen = false;
 let lastProfile = null;
+
+// -----------------------------------------------------------------------
+// Theme toggle
+// -----------------------------------------------------------------------
+function toggleTheme() {
+  const html = document.documentElement;
+  const current = html.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  html.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+  updateThemeButton(next);
+}
+
+function updateThemeButton(theme) {
+  const btn = document.getElementById('themeBtn');
+  if (btn) btn.innerHTML = theme === 'dark' ? '&#9789;' : '&#9728;';
+}
+
+// Initialize theme button on load
+updateThemeButton(document.documentElement.getAttribute('data-theme') || 'dark');
 
 function buildUiState() {
   return {
