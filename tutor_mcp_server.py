@@ -32,6 +32,7 @@ from learner_model import (
     TopicGraph,
     TopicState,
     load_learner,
+    rebuild_unified_graph,
     save_learner,
 )
 
@@ -207,6 +208,9 @@ def get_assessment(learner_id: str, topic: str) -> dict:
         "zpd": ts.zpd.model_dump(),
         "productive_failures": ts.productive_failures,
         "consecutive_errors": ts.break_state.consecutive_errors,
+        "unresolved_misconceptions": [
+            m.description for m in ts.misconceptions if not m.resolved
+        ],
     }
 
 
@@ -278,6 +282,37 @@ def record_misconception(learner_id: str, topic: str, description: str) -> dict:
 
 
 @mcp.tool()
+def resolve_misconception(learner_id: str, topic: str, description: str) -> dict:
+    """
+    Mark a misconception as resolved after the learner demonstrates understanding.
+    Finds the misconception by case-insensitive description match and sets resolved=True.
+    """
+    topic = _normalize_topic(topic)
+    profile = load_learner(learner_id)
+
+    if topic not in profile.topics:
+        return {"resolved": False, "error": f"No data for topic '{topic}'."}
+
+    ts = profile.topics[topic]
+
+    for m in ts.misconceptions:
+        if m.description.lower() == description.lower():
+            m.resolved = True
+            m.last_seen = datetime.now().isoformat()
+            save_learner(profile)
+            return {
+                "resolved": True,
+                "description": m.description,
+                "times_observed": m.times_observed,
+            }
+
+    return {
+        "resolved": False,
+        "error": f"Misconception not found: '{description}'",
+    }
+
+
+@mcp.tool()
 def store_topic_graph(
     learner_id: str, topic: str, prerequisites: dict[str, list[str]]
 ) -> dict:
@@ -289,6 +324,7 @@ def store_topic_graph(
     topic = _normalize_topic(topic)
     profile = load_learner(learner_id)
     profile.topic_graphs[topic] = TopicGraph(prerequisites=prerequisites)
+    rebuild_unified_graph(profile)
     save_learner(profile)
 
     return {
@@ -341,6 +377,7 @@ def delete_topic(learner_id: str, topic: str) -> dict:
     del profile.topics[topic]
     if topic in profile.topic_graphs:
         del profile.topic_graphs[topic]
+    rebuild_unified_graph(profile)
     save_learner(profile)
     return {"deleted": True, "topic": topic,
             "remaining_topics": list(profile.topics.keys())}
